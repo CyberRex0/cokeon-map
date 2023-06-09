@@ -10,8 +10,7 @@ import sqlalchemy
 
 pymysql.install_as_MySQLdb()
 
-DATABASE_URL = f'mysql://{config.DB_USER}:{config.DB_PASS}@{config.DB_HOST}/{config.DB_NAME}'
-database = databases.Database(DATABASE_URL)
+database = databases.Database(config.DATABASE_URL)
 
 metadata = sqlalchemy.MetaData()
 
@@ -25,7 +24,7 @@ markers = sqlalchemy.Table(
 )
 
 engine = sqlalchemy.create_engine(
-    DATABASE_URL
+    config.DATABASE_URL
 )
 metadata.create_all(engine)
 

@@ -1,4 +1,5 @@
 aiomysql
+databases
 fastapi[all]
 pydantic
 sqlalchemy

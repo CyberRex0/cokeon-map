@@ -4,9 +4,10 @@
 # 開発環境構築
 ## 要件
 - Node.js 18.x以降
-- pnpm
+  - pnpm
 - Python 3.9以降
-- MySQL
+  - virtualenv
+- MySQL 8.x以降
 
 ## インストール手順
 ```
