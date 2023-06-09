@@ -1,15 +1,18 @@
 # cokeon-map
 公式のマップがガバガバすぎたので自力で作るプロジェクト
 
-# 開発環境構築
-## 要件
+## 構想
+https://gist.github.com/CyberRex0/c3effd204c6be871738f625d9b831443
+
+## 開発環境構築
+### 要件
 - Node.js 18.x以降
   - pnpm
 - Python 3.9以降
   - virtualenv
 - MySQL 8.x以降
 
-## インストール手順
+### インストール手順
 ```
 $ pnpm i
 $ virtualenv env
@@ -17,7 +20,7 @@ $ . env/bin/activate
 $ pip install -U -r requirements.txt
 ```
 
-## 起動手順
+### 起動手順
 (ターミナル1)
 ```
 $ pnpm build --watch
