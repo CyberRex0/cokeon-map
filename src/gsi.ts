@@ -1,4 +1,6 @@
-import { GSIReverseGeocoderResponse } from "./types";
+import { GSIReverseGeocoderResponse, WindowGSIVarT } from "./types";
+
+const GSI: WindowGSIVarT = window.GSI;
 
 export default {
     GSI_API_BASE: 'https://mreversegeocoder.gsi.go.jp',

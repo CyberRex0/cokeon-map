@@ -17,3 +17,7 @@ export type MarkerData = {
     latlng: number[];
     label: string | null;
 }
+
+export type WindowGSIVarT = {
+    MUNI_ARRAY: { [key: number]: string };
+}

@@ -32,10 +32,9 @@
 import 'leaflet/dist/leaflet.css';
 import { LMap, LTileLayer, LMarker, LTooltip, LControlLayers, LControl } from "@vue-leaflet/vue-leaflet";
 import { Ref, onMounted, ref } from 'vue';
-import GSI from '../gsi';
+import GSIAPI from '../gsi';
 import { MapCenterIcon, CokeOnIcon } from '../icons';
 import { MarkerAPIData, MarkerData } from '../types';
-import { marker } from 'leaflet';
 
 const isGPSSupported = (navigator.geolocation !== undefined);
 const map: any = ref(null);
@@ -80,7 +79,7 @@ function getGeolocation(): void {
 
 async function updateCenterLatLng(center: {lat: number, lng: number}) {
     currentLatLng.value = [center.lat, center.lng];
-    const addr: string = await GSI.fetchMapAddressByLatLng(center.lat, center.lng);
+    const addr: string = await GSIAPI.fetchMapAddressByLatLng(center.lat, center.lng);
     currentAddress.value = addr;
 }
 
@@ -93,12 +92,14 @@ async function addMarker() {
         body: JSON.stringify({ lat: currentLatLng.value[0], lng: currentLatLng.value[1] }),
     });
     if (f.ok) {
-        const res: MarkerData = await f.json();
-        markers.value.push({
+        const res: MarkerAPIData = await f.json();
+        console.log(res);
+        const v = {
             id: res.id,
-            latlng: res.latlng,
-            label: res.label,
-        });
+            latlng: [Number(res.lat), Number(res.lng)],
+            label: res.createdAt,
+        };
+        markers.value.push(v);
     } else {
         alert('error!');
     }
