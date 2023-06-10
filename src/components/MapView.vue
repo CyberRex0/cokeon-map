@@ -9,11 +9,11 @@
             ></l-tile-layer>
             <l-control v-if="isGPSSupported" class="leaflet-control leaflet-demo-control" position="topright">
                 <div class="lcontroltr">
-                <button @click="getGeolocation">現在地取得</button>
+                <el-button @click="getGeolocation">現在地取得</el-button>
                 <br>
-                <button @click="moveLatLngDialogVisible = true">座標指定</button>
+                <el-button @click="moveLatLngDialogVisible = true">座標指定</el-button>
                 <br>
-                <button @click="addMarker">マーカー追加</button>
+                <el-button @click="addMarker">マーカー追加</el-button>
                 </div>
             </l-control>
             <l-control class="leaflet-control" position="topleft">
@@ -53,6 +53,7 @@
 
 <script setup lang="ts">
 import 'leaflet/dist/leaflet.css';
+/*import 'element-plus/theme-chalk/dark/css-vars.css';*/
 import { LMap, LTileLayer, LMarker, LTooltip, LControlLayers, LControl } from "@vue-leaflet/vue-leaflet";
 import { Ref, onMounted, ref } from 'vue';
 import GSIAPI from '../gsi';
@@ -70,7 +71,7 @@ const customLng = ref('');
 
 const markers: Ref<MarkerData[]> = ref([]);
 
-const moveLatLngDialogVisible = ref(true);
+const moveLatLngDialogVisible = ref(false);
 
 function onMarkerDrag(ev: { target: any; }): void {
     console.log(ev.target);
@@ -157,6 +158,21 @@ function moveToCustomLatLng() {
 onMounted(async () => {
     getGeolocation();
     getMarkerList();
+
+    /*const darkModeMediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+    const darkModeOn = darkModeMediaQuery.matches;
+    if (darkModeOn) {
+        document.documentElement.classList.add('dark');
+    }
+
+    darkModeMediaQuery.addEventListener('change', (e) => {
+        const darkModeOn = e.matches;
+        if (darkModeOn) {
+            document.documentElement.classList.add('dark');
+        } else {
+            document.documentElement.classList.remove('dark');
+        }
+    });*/
 });
 
 </script>
