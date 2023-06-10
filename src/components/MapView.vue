@@ -8,9 +8,13 @@
                 name="OpenStreetMap"
             ></l-tile-layer>
             <l-control v-if="isGPSSupported" class="leaflet-control leaflet-demo-control" position="topright">
+                <div class="lcontroltr">
                 <button @click="getGeolocation">現在地取得</button>
                 <br>
+                <button @click="moveLatLngDialogVisible = true">座標指定</button>
+                <br>
                 <button @click="addMarker">マーカー追加</button>
+                </div>
             </l-control>
             <l-control class="leaflet-control" position="topleft">
                 <b style="color: black">Powered by Leaflet<br/>made in Ukraine</b>
@@ -26,6 +30,25 @@
             <l-marker :lat-lng="currentLatLng" :icon="MapCenterIcon"></l-marker>
         </l-map>
     </div>
+    <el-dialog
+        class="modal"
+        v-model="moveLatLngDialogVisible"
+        title="指定座標に移動"
+        width="70vw"
+    >
+        <el-input style="width: 60%" v-model="customLat" placeholder="緯度 (例: 35.68114)" />
+        <br>
+        <el-input style="width: 60%" v-model="customLng" placeholder="経度 (例: 139.76703)" />
+
+        <template #footer>
+            <span class="dialog-footer">
+                <el-button @click="moveLatLngDialogVisible = false">Cancel</el-button>
+                <el-button type="primary" @click="moveToCustomLatLng">
+                移動
+                </el-button>
+            </span>
+        </template>
+    </el-dialog>
 </template>
 
 <script setup lang="ts">
@@ -42,9 +65,12 @@ const mapCenter: Ref<number[]> = ref([35.681148324168014, 139.76703858892955]);
 const zoom: Ref<number> = ref(16);
 const currentLatLng: Ref<number[]> = ref([0,0]);
 const currentAddress: Ref<string> = ref('');
+const customLat = ref('');
+const customLng = ref('');
 
 const markers: Ref<MarkerData[]> = ref([]);
 
+const moveLatLngDialogVisible = ref(true);
 
 function onMarkerDrag(ev: { target: any; }): void {
     console.log(ev.target);
@@ -123,6 +149,11 @@ async function getMarkerList() {
     }
 }
 
+function moveToCustomLatLng() {
+    moveLatLngDialogVisible.value = false;
+    mapCenter.value = [Number(customLat.value), Number(customLng.value)];
+}
+
 onMounted(async () => {
     getGeolocation();
     getMarkerList();
@@ -158,5 +189,19 @@ onMounted(async () => {
 	border-left: 13px solid black;
 	border-right: 13px solid black;
 	border-radius: 2px;
+}
+
+.modal {
+    width: 20%;
+}
+
+@media screen and (max-width: 1000px) {
+    .modal {
+        width: 100%;
+    }
+}
+
+.lcontroltr button {
+    margin-top: 8px;
 }
 </style>
