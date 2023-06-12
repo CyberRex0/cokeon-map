@@ -12,9 +12,7 @@
     "@types/leaflet": "^1.9.3",
     "@vue-leaflet/vue-leaflet": "^0.9.0",
     "element-plus": "^2.3.6",
-    "javascript-obfuscator": "^4.0.2",
     "leaflet": "^1.9.4",
-    "rollup-obfuscator": "^3.0.2",
     "vue": "^3.3.4"
   },
   "devDependencies": {
