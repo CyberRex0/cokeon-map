@@ -15,4 +15,12 @@ export default defineConfig({
       resolvers: [ElementPlusResolver()],
     }),
   ],
+
+  build: {
+    rollupOptions: {
+      manualChunks: (id) => {
+        if (id.includes('.pnpm')) return id.toString().split('.pnpm/')[1].split('/')[0].toString();
+      }
+    }
+  }
 })
