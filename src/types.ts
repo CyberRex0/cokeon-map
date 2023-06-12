@@ -9,13 +9,15 @@ export type MarkerAPIData = {
     id: number;
     lat: number;
     lng: number;
+    memo: string | null;
     createdAt: string;
 }
 
 export type MarkerData = {
     id: number;
     latlng: number[];
-    label: string | null;
+    memo: string | null;
+    createdAt: string;
 }
 
 export type WindowGSIVarT = {

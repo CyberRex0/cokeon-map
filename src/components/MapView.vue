@@ -1,11 +1,12 @@
 <template>
     <div class="llmap">
-        <l-map class="llmap" ref="map" v-model:zoom="zoom" :center="mapCenter" :use-global-leaflet="false" @update:center="updateCenterLatLng">
-            <l-control-layers />
+        <l-map class="llmap" ref="map" v-model:zoom="zoom" :center="mapCenter" :use-global-leaflet="false" :options="{ contextmenu: true }" @update:center="updateCenterLatLng" @contextmenu="onMapContext">
+            <l-control-layers :sortLayers="true" />
             <l-tile-layer
-                url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                layer-type="base"
-                name="OpenStreetMap"
+                v-for="provider in mapTileProvider"
+                :url="provider.url"
+                :layer-type="provider.type"
+                :name="provider.name"
             ></l-tile-layer>
             <l-control v-if="isGPSSupported" class="leaflet-control leaflet-demo-control" position="topright">
                 <div class="lcontroltr">
@@ -13,7 +14,7 @@
                 <br>
                 <el-button @click="moveLatLngDialogVisible = true">座標指定</el-button>
                 <br>
-                <el-button @click="addMarker">マーカー追加</el-button>
+                <el-button @click="addMarkerFromCenter">マーカー追加</el-button>
                 </div>
             </l-control>
             <l-control class="leaflet-control" position="topleft">
@@ -24,12 +25,27 @@
                     {{ currentAddress }}
                 </b>
             </l-control>
-            <l-marker v-for="marker in markers" :lat-lng="marker.latlng" :key="marker.id" @moveend="onMarkerDrag" @contextmenu="onMarkerContext" :icon="CokeOnIcon" :options="{id: marker.id}">
-                <l-tooltip>{{ marker.label }}</l-tooltip>
+            <l-marker v-for="marker in markers" ref="markerRefs" :lat-lng="marker.latlng" :key="marker.id" @moveend="onMarkerDrag" @contextmenu="onMarkerContext" :icon="CokeOnIcon" :options="{id: marker.id, memo: marker.memo}">
+                <l-tooltip>{{ marker.memo }}<br>追加日時: {{ marker.createdAt }}</l-tooltip>
             </l-marker>
             <l-marker :lat-lng="currentLatLng" :icon="MapCenterIcon"></l-marker>
+            <l-circle v-if="mapContextMenuShow" :lat-lng="pointerLatLng" :radius="pointerCircleRadius" color="red" @contextmenu="()=> { return false; }" />
+
+            <div v-show="markerContextMenuShow" ref="markerContextMenuRef" class="contextmenu markercontext">
+                <el-button @click="removeMarkerClick">削除</el-button>
+                <br>
+                <el-button @click="editMarkerMemoClick">メモ編集</el-button>
+                <br>
+                <el-button @click="openGMapClick">Googleマップで見る</el-button>
+            </div>
+            <div v-show="mapContextMenuShow" ref="mapContextMenuRef" class="contextmenu mapcontext" oncontextmenu="return false;">
+                <el-button @click="addMarkerCurrentClick">ここにマーカーを追加</el-button>
+                <br>
+                <el-button @click="openGMapClick">Googleマップで見る</el-button>
+            </div>
         </l-map>
     </div>
+
     <el-dialog
         class="modal"
         v-model="moveLatLngDialogVisible"
@@ -49,16 +65,59 @@
             </span>
         </template>
     </el-dialog>
+
+    <el-dialog
+        class="modal"
+        v-model="editMarkerMemoDialogVisible"
+        title="メモを編集"
+        width="70vw"
+    >
+
+        <el-input
+            v-model="markerMemo"
+            :autosize="{ minRows: 4, maxRows: 6 }"
+            type="textarea"
+            placeholder=""
+        />
+
+        <template #footer>
+            <span class="dialog-footer">
+                <el-button @click="editMarkerMemoDialogVisible = false">Cancel</el-button>
+                <el-button type="primary" @click="saveMarkerMemoClick">
+                保存
+                </el-button>
+            </span>
+        </template>
+    </el-dialog>
 </template>
 
 <script setup lang="ts">
 import 'leaflet/dist/leaflet.css';
 /*import 'element-plus/theme-chalk/dark/css-vars.css';*/
-import { LMap, LTileLayer, LMarker, LTooltip, LControlLayers, LControl } from "@vue-leaflet/vue-leaflet";
-import { Ref, onMounted, ref } from 'vue';
+import { LMap, LTileLayer, LMarker, LTooltip, LControlLayers, LControl, LCircle } from "@vue-leaflet/vue-leaflet";
+import { Ref, onMounted, ref, watch } from 'vue';
 import GSIAPI from '../gsi';
 import { MapCenterIcon, CokeOnIcon } from '../icons';
 import { MarkerAPIData, MarkerData } from '../types';
+import { ElMessageBox, ElNotification } from 'element-plus';
+
+const mapTileProvider = [
+    {
+        url: 'https://mt1.google.com/vt/lyrs=r&x={x}&y={y}&z={z}',
+        type: 'base',
+        name: '1 Google マップ',
+    },
+    {
+        url: 'https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}',
+        type: 'base',
+        name: '2 Google マップ (衛星写真)',
+    },
+    {
+        url: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+        type: 'base',
+        name: '3 OpenStreetMap',
+    },
+];
 
 const isGPSSupported = (navigator.geolocation !== undefined);
 const map: any = ref(null);
@@ -68,38 +127,162 @@ const currentLatLng: Ref<number[]> = ref([0,0]);
 const currentAddress: Ref<string> = ref('');
 const customLat = ref('');
 const customLng = ref('');
-
 const markers: Ref<MarkerData[]> = ref([]);
-
 const moveLatLngDialogVisible = ref(false);
+const markerContextMenuShow = ref(false);
+const markerContextMenuRef = ref();
+let removeMarkerClick = null;
+let editMarkerMemoClick = null;
+const markerRefs = ref([]);
+const markerMemo = ref('');
+const editMarkerMemoDialogVisible = ref(false);
+let saveMarkerMemoClick = null;
+let openGMapClick = null;
+const mapContextMenuShow = ref(false);
+const mapContextMenuRef = ref();
+let addMarkerCurrentClick = null;
+const pointerLatLng = ref([0,0]);
+const pointerCircleRadius = ref(50);
+
+watch(zoom, () => {
+    let z = 50 - (zoom.value * 2.5);
+    if (z < 0) z = 0;
+    pointerCircleRadius.value = z;
+});
 
 function onMarkerDrag(ev: { target: any; }): void {
     console.log(ev.target);
 }
 
+async function onMapContext(ev) {
+    const target = ev.target;
+    if (target.classList.contains('llmap')) {
+        ev.preventDefault();
+        mapContextMenuRef.value.style.top = ev.pageY + 'px';
+        mapContextMenuRef.value.style.left = ev.pageX + 'px';
+        const platlng = map.value.leafletObject.mouseEventToLatLng(ev);
+        pointerLatLng.value =[platlng.lat, platlng.lng];
+        addMarkerCurrentClick = async () => {
+            mapContextMenuShow.value = false;
+            await addMarker(platlng.lat, platlng.lng);
+        };
+        mapContextMenuShow.value = true;
+        document.addEventListener('click', checkClickOutOfMapMenu);
+    }
+}
+
 async function onMarkerContext(ev: { target: any; }) {
     const target = ev.target;
-    if (window.confirm(`${target.options.id} を削除しますか？`)) {
+    const iconRect = target.dragging._marker._icon.getBoundingClientRect();
+    markerContextMenuRef.value.style.top = iconRect.top + 'px';
+    markerContextMenuRef.value.style.left = iconRect.left + 'px';
+    markerContextMenuShow.value = true;
+    document.addEventListener('click', checkClickOutOfCtxMenu);
+    removeMarkerClick = () => {
+        removeMarker(target.options.id);
+    };
+    editMarkerMemoClick = () => {
+        markerContextMenuShow.value = false;
+        markerMemo.value = target.options.memo;
+        saveMarkerMemoClick = async () => {
+            await saveMarkerMemo(target.options.id, markerMemo.value);
+        };
+        editMarkerMemoDialogVisible.value = true;
+    }
+    openGMapClick = () => {
+        openGMap(target._latlng.lat, target._latlng.lng);
+    };
+    return;
+}
+
+function checkClickOutOfCtxMenu(e) {
+    if (!e.target.closest('.markercontext')) {
+        markerContextMenuShow.value = false;
+        document.removeEventListener('click', checkClickOutOfCtxMenu);
+    }
+}
+
+function checkClickOutOfMapMenu(e) {
+    if (!e.target.closest('.mapcontext')) {
+        mapContextMenuShow.value = false;
+        document.removeEventListener('click', checkClickOutOfMapMenu);
+    }
+}
+
+async function removeMarker(mid) {
+    markerContextMenuShow.value = false;
+    ElMessageBox.confirm('削除しますか？').then(async () => {
         const f = await fetch('/api/v1/markers/delete', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
             },
-            body: JSON.stringify({ id: target.options.id }),
+            body: JSON.stringify({ id: mid }),
         });
         if (f.ok) {
-            markers.value = markers.value.filter(v => v.id !== target.options.id);
+            markers.value = markers.value.filter(v => v.id !== mid);
+            ElNotification({
+                title: 'マーカーを削除しました',
+                type: 'success',
+            });
         } else {
-            alert('error!');
+            ElNotification({
+                title: 'マーカーを削除できませんでした',
+                type: 'error',
+            });
         }
+    }).catch(() => {});
+}
+
+async function saveMarkerMemo(mid, memo) {
+    const f = await fetch('/api/v1/markers/update', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ id: mid, memo: memo }),
+    });
+    if (f.ok) {
+        for (let index=0; index < markers.value.length; index++) {
+            if (markers.value[index].id == mid) {
+                markers.value[index].memo = memo;
+                break;
+            }
+        }
+        editMarkerMemoDialogVisible.value = false;
+        ElNotification({
+                title: 'メモを更新しました',
+                type: 'success',
+        });
+    } else {
+        ElNotification({
+                title: 'メモを更新できませんでした',
+                type: 'error',
+        });
     }
+}
+
+function openGMap(lat, lng) {
+    window.open(`https://www.google.com/maps/search/?api=1&query=${lat},${lng}`);
 }
 
 function getGeolocation(): void {
     if (navigator.geolocation) {
+        const notify = ElNotification({
+                title: '位置情報を取得しています…',
+                message: '数秒かかります',
+                duration: 0
+        });
         navigator.geolocation.getCurrentPosition((g) => {
             mapCenter.value = [g.coords.latitude, g.coords.longitude];
             currentLatLng.value = [g.coords.latitude, g.coords.longitude];
+            notify.close();
+        });
+    } else {
+        ElNotification({
+                title: '位置情報を取得できません',
+                message: 'ブラウザがサポートしていません。',
+                type: 'warning',
         });
     }
 }
@@ -110,13 +293,17 @@ async function updateCenterLatLng(center: {lat: number, lng: number}) {
     currentAddress.value = addr;
 }
 
-async function addMarker() {
+async function addMarkerFromCenter() {
+    await addMarker(currentLatLng.value[0], currentLatLng.value[1]);
+}
+
+async function addMarker(lat, lng) {
     const f = await fetch('/api/v1/markers/create', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ lat: currentLatLng.value[0], lng: currentLatLng.value[1] }),
+        body: JSON.stringify({ lat: lat, lng: lng }),
     });
     if (f.ok) {
         const res: MarkerAPIData = await f.json();
@@ -124,11 +311,19 @@ async function addMarker() {
         const v = {
             id: res.id,
             latlng: [Number(res.lat), Number(res.lng)],
-            label: res.createdAt,
+            memo: res.memo,
+            createdAt: res.createdAt,
         };
         markers.value.push(v);
+        ElNotification({
+                title: 'マーカーを追加しました',
+                type: 'success',
+        });
     } else {
-        alert('error!');
+        ElNotification({
+                title: 'マーカーを追加できませんでした',
+                type: 'error',
+        });
     }
 }
 
@@ -140,8 +335,9 @@ async function getMarkerList() {
         for (const m of l) {
             converted.push({
                 latlng: [m.lat, m.lng],
-                label: m.createdAt,
                 id: m.id,
+                memo: m.memo,
+                createdAt: m.createdAt,
             });
         }
         markers.value = converted;
@@ -219,5 +415,20 @@ onMounted(async () => {
 
 .lcontroltr button {
     margin-top: 8px;
+}
+
+.contextmenu {
+    position: absolute;
+    padding: 4px;
+    /*width: 200px;
+    height: 300px;*/
+    background-color: rgba(255, 255, 255, 0.7);
+    /*border: 2px solid black;*/
+    z-index: 99999;
+    border-radius: 2px;
+}
+
+.contextmenu button {
+    width: 100%;
 }
 </style>

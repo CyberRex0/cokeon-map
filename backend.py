@@ -1,4 +1,4 @@
-from typing import Dict, List
+from typing import Dict, List, Optional
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
@@ -20,6 +20,7 @@ markers = sqlalchemy.Table(
     sqlalchemy.Column('id', sqlalchemy.Integer, primary_key=True, autoincrement=True),
     sqlalchemy.Column('lat', sqlalchemy.String(64)),
     sqlalchemy.Column('lng', sqlalchemy.String(64)),
+    sqlalchemy.Column('memo', sqlalchemy.String(300)),
     sqlalchemy.Column('createdAt', sqlalchemy.DateTime)
 )
 
@@ -32,6 +33,7 @@ class Marker(BaseModel):
     id: int = None
     lat: str
     lng: str
+    memo: Optional[str]
     createdAt: datetime.datetime = None
 
 class MarkerIn(BaseModel):
@@ -44,6 +46,10 @@ class MarkerOut(BaseModel):
 
 class MarkerDeleteParam(BaseModel):
     id: int
+
+class MarkerUpdateParam(BaseModel):
+    id: int
+    memo: str
 
 app = FastAPI()
 api = FastAPI()
@@ -83,4 +89,9 @@ async def api_post_v1_markers_create(m: MarkerIn):
 @api.post('/v1/markers/delete')
 async def api_post_v1_markers_delete(m: MarkerDeleteParam):
     q = markers.delete().where(markers.c.id == m.id)
+    r = await database.execute(q)
+
+@api.post('/v1/markers/update')
+async def api_post_v1_markers_update(m: MarkerUpdateParam):
+    q = markers.update().values(memo=m.memo).where(markers.c.id == m.id)
     r = await database.execute(q)
