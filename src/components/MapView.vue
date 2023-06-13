@@ -43,7 +43,7 @@
             <div v-show="mapContextMenuShow" ref="mapContextMenuRef" class="contextmenu mapcontext" oncontextmenu="return false;">
                 <el-button @click="addMarkerCurrentClick">ここにマーカーを追加</el-button>
                 <br>
-                <el-button @click="openGMap(mapCenter[0], mapCenter[1])">Googleマップで見る</el-button>
+                <el-button @click="openGMapCurrentClick">Googleマップで見る</el-button>
             </div>
         </l-map>
     </div>
@@ -147,6 +147,7 @@ const pointerLatLng = ref([0,0]);
 const pointerCircleRadius = ref(50);
 const geoAutoUpdate = ref(false);
 let geoWatchHandle = null;
+let openGMapCurrentClick = null;
 
 watch(zoom, () => {
     let z = 50 - (zoom.value * 2.5);
@@ -186,6 +187,10 @@ async function onMapContext(ev) {
             mapContextMenuShow.value = false;
             await addMarker(platlng.lat, platlng.lng);
         };
+        openGMapCurrentClick = () => {
+            mapContextMenuShow.value = false;
+            openGMap(platlng.lat, platlng.lng);
+        }
         mapContextMenuShow.value = true;
         document.addEventListener('click', checkClickOutOfMapMenu);
     }
