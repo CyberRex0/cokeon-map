@@ -8,9 +8,11 @@
                 :layer-type="provider.type"
                 :name="provider.name"
             ></l-tile-layer>
-            <l-control v-if="isGPSSupported" class="leaflet-control leaflet-demo-control" position="topright">
+            <l-control v-if="isGPSSupported" class="leaflet-control control-tr" position="topright">
                 <div class="lcontroltr">
                 <el-button @click="getGeolocation">現在地取得</el-button>
+                <br>
+                <el-switch v-model="geoAutoUpdate" active-text="AUTO" inactive-text="MANUAL"></el-switch>
                 <br>
                 <el-button @click="moveLatLngDialogVisible = true">座標指定</el-button>
                 <br>
@@ -41,7 +43,7 @@
             <div v-show="mapContextMenuShow" ref="mapContextMenuRef" class="contextmenu mapcontext" oncontextmenu="return false;">
                 <el-button @click="addMarkerCurrentClick">ここにマーカーを追加</el-button>
                 <br>
-                <el-button @click="openGMapClick">Googleマップで見る</el-button>
+                <el-button @click="openGMap(mapCenter[0], mapCenter[1])">Googleマップで見る</el-button>
             </div>
         </l-map>
     </div>
@@ -95,11 +97,11 @@
 import 'leaflet/dist/leaflet.css';
 /*import 'element-plus/theme-chalk/dark/css-vars.css';*/
 import { LMap, LTileLayer, LMarker, LTooltip, LControlLayers, LControl, LCircle } from "@vue-leaflet/vue-leaflet";
-import { Ref, onMounted, ref, watch } from 'vue';
+import { Ref, onMounted, onUnmounted, ref, watch } from 'vue';
 import GSIAPI from '../gsi';
 import { MapCenterIcon, CokeOnIcon } from '../icons';
 import { MarkerAPIData, MarkerData } from '../types';
-import { ElMessageBox, ElNotification } from 'element-plus';
+import { ElMessageBox, ElNotification, ElSwitch } from 'element-plus';
 
 const mapTileProvider = [
     {
@@ -143,11 +145,29 @@ const mapContextMenuRef = ref();
 let addMarkerCurrentClick = null;
 const pointerLatLng = ref([0,0]);
 const pointerCircleRadius = ref(50);
+const geoAutoUpdate = ref(false);
+let geoWatchHandle = null;
 
 watch(zoom, () => {
     let z = 50 - (zoom.value * 2.5);
     if (z < 0) z = 0;
     pointerCircleRadius.value = z;
+});
+
+watch(geoAutoUpdate, () => {
+    if (geoAutoUpdate.value === true) {
+        if (!geoWatchHandle) {
+            geoWatchHandle = navigator.geolocation.watchPosition(async (p) => {
+                mapCenter.value = [p.coords.latitude, p.coords.longitude];
+                await updateCenterLatLng({lat: p.coords.latitude, lng: p.coords.longitude});
+            }, () => {}, { enableHighAccuracy: true });
+        }
+    } else {
+        if (geoWatchHandle) {
+            navigator.geolocation.clearWatch(geoWatchHandle);
+            geoWatchHandle = null;
+        }
+    }
 });
 
 function onMarkerDrag(ev: { target: any; }): void {
@@ -277,6 +297,8 @@ function getGeolocation(): void {
             mapCenter.value = [g.coords.latitude, g.coords.longitude];
             currentLatLng.value = [g.coords.latitude, g.coords.longitude];
             notify.close();
+        }, () => {}, {
+            enableHighAccuracy: true,
         });
     } else {
         ElNotification({
@@ -371,6 +393,13 @@ onMounted(async () => {
     });*/
 });
 
+onUnmounted(() => {
+    if (geoWatchHandle) {
+        navigator.geolocation.clearWatch(geoWatchHandle);
+        geoWatchHandle = null;
+    }
+});
+
 </script>
 
 <style scoped>
@@ -405,6 +434,16 @@ onMounted(async () => {
 
 .lcontroltr button {
     margin-top: 8px;
+}
+
+.control-tr {
+    padding: 2px;
+    background-color: rgba(255,255,255,0.8);
+    border-radius: 4px;
+}
+
+.control-tr button {
+    width: 100%;
 }
 
 .contextmenu {
