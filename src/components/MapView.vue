@@ -403,16 +403,6 @@ onMounted(async () => {
 	border-radius: 2px;
 }
 
-.modal {
-    width: 20%;
-}
-
-@media screen and (max-width: 1000px) {
-    .modal {
-        width: 100%;
-    }
-}
-
 .lcontroltr button {
     margin-top: 8px;
 }

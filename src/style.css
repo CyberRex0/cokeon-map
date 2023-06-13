@@ -26,3 +26,7 @@ body {
   padding: 0;
   /*text-align: center;*/
 }
+
+.el-dialog {
+  max-width: 500px;
+}
