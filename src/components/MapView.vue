@@ -24,7 +24,8 @@
                 <br>
                 <b style="color: white; background-color: rgb(50,50,50);">
                     {{ currentLatLng[0] }}, {{ currentLatLng[1] }}<br>
-                    {{ currentAddress }}
+                    {{ currentAddress }}<br>
+                    <span v-if="geoAutoUpdate">{{ geoUpdateInfo.speed>0 ? Math.floor(geoUpdateInfo.speed) : '0' }}km/h &plusmn;{{ Math.floor(geoUpdateInfo.accuracy) }}m</span>
                 </b>
             </l-control>
             <l-marker v-for="marker in markers" ref="markerRefs" :lat-lng="marker.latlng" :key="marker.id" @moveend="onMarkerDrag" @contextmenu="onMarkerContext" :icon="CokeOnIcon" :options="{id: marker.id, memo: marker.memo}">
@@ -148,6 +149,7 @@ const pointerCircleRadius = ref(50);
 const geoAutoUpdate = ref(false);
 let geoWatchHandle = null;
 let openGMapCurrentClick = null;
+const geoUpdateInfo: Ref<GeolocationCoordinates> = ref();
 
 watch(zoom, () => {
     let z = 50 - (zoom.value * 2.5);
@@ -160,6 +162,7 @@ watch(geoAutoUpdate, () => {
         if (!geoWatchHandle) {
             geoWatchHandle = navigator.geolocation.watchPosition(async (p) => {
                 mapCenter.value = [p.coords.latitude, p.coords.longitude];
+                geoUpdateInfo.value = p.coords;
                 await updateCenterLatLng({lat: p.coords.latitude, lng: p.coords.longitude});
             }, () => {}, { enableHighAccuracy: true });
         }
@@ -177,6 +180,7 @@ function onMarkerDrag(ev: { target: any; }): void {
 
 async function onMapContext(ev) {
     const target = ev.target;
+	console.log(map.value.leafletObject);
     if (target.classList.contains('llmap')) {
         ev.preventDefault();
         mapContextMenuRef.value.style.top = ev.pageY + 'px';
